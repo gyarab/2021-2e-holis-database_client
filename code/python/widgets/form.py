@@ -1,5 +1,5 @@
 from tkinter import *
-
+from tkinter import messagebox
 
 class FormButton:
 	def __init__(self, name, command):
@@ -8,11 +8,11 @@ class FormButton:
 
 
 class Field:
-	def __init__(self, text, type="entry", value="", warning="", optional=False):
+	def __init__(self, text, type="entry", value="", warning="", required=False):
 		self.text = text
 		self.value = value
 		self.warning = warning
-		self.optional = optional
+		self.required = required
 		self.type = type
 
 
@@ -29,8 +29,16 @@ class Form:
 
 	def get_values(self):
 		vals = []
+		idx = 0
 		for en in self.entries:
+			val = en.get()
+
+			if self.fields[idx].required is True and (not val or len(val) == 0):
+				messagebox.showerror('Field not filled', 'Field ' + self.fields[idx].text + ' must be filled')
+				return
+
 			vals.append(en.get())
+			idx += 1
 		return vals
 
 	def show_fields(self):

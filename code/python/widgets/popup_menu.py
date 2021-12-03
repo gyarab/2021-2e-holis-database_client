@@ -7,7 +7,7 @@ class Option:
 		self.separator = separator
 
 
-class Option_menu:
+class OptionSelectMenu:
 	def __init__(self, root, options):
 		self.popup = Menu(root, tearoff=0)
 

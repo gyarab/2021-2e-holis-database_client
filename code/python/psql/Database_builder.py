@@ -68,33 +68,71 @@ class SelectParams:
 			del self.conditions[str(con_id)]
 
 
+class UserBuilder:
+	def __init__(self, user, password, create_db, create_role, superuser):
+		self.user = user
+		self.password = password
+		self.create_db = create_db
+		self.create_role = create_role
+		self.superuser = superuser
+
+	def build_command(self):
+		command = "CREATE USER " + self.user
+		options = []
+
+		if self.create_role == 1:
+			options.append("CREATEROLE")
+
+		if self.create_db == 1:
+			options.append("CREATEDB")
+
+		if self.superuser == 1:
+			options.append("SUPERUSER")
+
+		if len(options) > 0 or len(self.password) > 0:
+			command += " WITH "
+
+		if len(self.password) > 0:
+			command += "PASSWORD %s"
+
+		if len(options) > 0:
+			command += (" " if len(self.password) > 0 is not None else "") + " ".join(options)
+
+		print(command)
+
+		return command + ";"
+
+
 class Database_builder:
 
 	def execute(self, database_connection, command, values=None, mode='none'):
 		if values is None:
 			values = []
 
-		conn = connect(
-			database=database_connection['database'],
-			user=database_connection['user'],
-			password=database_connection['password'],
-			host=database_connection['host'],
-			port=database_connection['port']
-		)
-		cursor = conn.cursor()
-		res = None
-		cursor.execute(command, values) if len(values) > 0 else cursor.execute(command)
-		conn.commit()
+		try:
+			conn = connect(
+				database=database_connection['database'],
+				user=database_connection['user'],
+				password=database_connection['password'],
+				host=database_connection['host'],
+				port=database_connection['port']
+			)
+			cursor = conn.cursor()
+			res = None
+			cursor.execute(command, values) if len(values) > 0 else cursor.execute(command)
+			conn.commit()
 
-		if mode == 'all':
-			res = cursor.fetchall()
-		elif mode == 'one':
-			res = cursor.fetchone()
+			if mode == 'all':
+				res = cursor.fetchall()
+			elif mode == 'one':
+				res = cursor.fetchone()
 
-		conn.close()
+			conn.close()
 
-		if mode != 'none':
-			return res
+			if mode != 'none':
+				return res
+		except BaseException as ex:
+			raise ex
 
 	def all(self, database_connection, command, values=None):
 		return self.execute(database_connection, command, values, 'all')
@@ -111,37 +149,26 @@ class Database_builder:
 		values = [owner] if owner is not None else []
 		self.autocommit_execute(command, values)
 
-	def add_db_user(self):
-		command = ''
-
 	def test_database_connection(self, database_connection):
 		command = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
 		self.execute(database_connection.convertToJson(), command)
 
-	def create_user(self, database, user, password, create_db, create_role, superuser):
-		command = "CREATE USER " + user
-		options = ""
+	def create_user(self, user_builder):
+		command = user_builder.build_command()
+		if user_builder.password is not None:
+			values = [user_builder.password]
+			self.autocommit_execute(command, values)
+			return
 
-		if create_role == 1:
-			options += " CREATEROLE "
+		self.autocommit_execute(command)
 
-		if create_db == 1:
-			options += " CREATEDB "
+	def add_user(self, database, user):
+		command = "GRANT ALL PRIVILEGES ON DATABASE " + database + " TO " + user + ";"
+		self.autocommit_execute(command)
 
-		if superuser == 1:
-			options += " SUPERUSER "
-
-		if len(options) > 0:
-			command += " WITH " + options
-
-		# TODO
-
-		command += " WITH PASSWORD %s;"
-
-		values = [password]
-		self.autocommit_execute(command, values)
-		command2 = "GRANT ALL PRIVILEGES ON DATABASE " + database + " TO " + user + ";"
-		self.autocommit_execute(command2)
+	def create_and_user_database(self, database, user_builder):
+		self.create_user(user_builder)
+		self.add_user(database, user_builder.user)
 
 	def save_database_connection(self, database_connection):
 		json_object = json.load(open("data/database_connections.json", "r"))
@@ -155,7 +182,9 @@ class Database_builder:
 		json_object = json.load(a_file)
 		a_file.close()
 
-		connection = json_object[database_name]
+		connection = None
+		if database_name in json_object:
+			connection = json_object[database_name]
 
 		return connection
 

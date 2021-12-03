@@ -1,7 +1,7 @@
-from .utils import *
 from tkinter import messagebox
 from code.python.psql.Database_builder import *
 from code.python.widgets.popup_menu import *
+
 
 class Table:
     def __init__(self, root, database, name, change_screen):
@@ -21,7 +21,7 @@ class Table:
         if MsgBox == 'yes':
             Database_builder().drop_table(self.database, self.table_title.get())
 
-    def rename_table(self):
+    def rename_table_screen(self):
         self.change_screen("table_rename", self.database, self.table_title.get())
 
     def modify_table(self):
@@ -43,13 +43,13 @@ class Table:
 
         options = [
             Option("Query console", self.open_query_console),
-            Option("Rename table", self.rename_table),
+            Option("Rename table", self.rename_table_screen),
             Option("Drop", self.drop_table),
             Option("Modify", self.modify_table),
             Option("Refresh", self.refresh_table)
         ]
 
-        Option_menu(label, options)
+        OptionSelectMenu(label, options)
         label.pack()
 
     def change_visibility(self):
@@ -66,10 +66,13 @@ class Table:
 class Database:
     def __init__(self, root, name, change_screen):
         self.frame = Frame(root)
-        self.tables = Database_builder().get_all_tables(name)
+        try:
+            self.tables = Database_builder().get_all_tables(name)
+        except BaseException as ex:
+            messagebox.showinfo('Database doesn\'t exist', 'Database ' + name + ' doesn\'t exist')
+
         self.database_title = StringVar()
         self.database_title.set(name)
-        self.table_option_els = []
         self.table_els = []
         self.change_screen = change_screen
         self.frame.pack()
@@ -78,8 +81,11 @@ class Database:
     def open_query_console(self):
         self.change_screen("query_console", self.database_title.get())
 
-    def create_user(self):
-        self.change_screen("user_create", self.database_title.get())
+    def add_user(self):
+        self.change_screen("add_user_database", self.database_title.get())
+
+    def create_and_add_user(self):
+        self.change_screen("create_and_add_user_database", self.database_title.get())
 
     def drop_database(self):
         MsgBox = messagebox.askquestion('Drop database',
@@ -105,14 +111,9 @@ class Database:
             t.frame.pack_forget()
             t.frame.destroy()
 
-        for o in self.table_option_els:
-            o.pack_forget()
-            o.destroy()
-
         #TODO pokud jsou otevřené nechat otevřené/pokud zavřené nechat zavřené
         self.tables = Database_builder().get_all_tables(self.database_title.get())
         self.table_els = []
-        self.table_option_els = []
         self.handle_table_selection()
 
     def open_rename_database_screen(self):
@@ -133,28 +134,19 @@ class Database:
             Option("Disconnect", self.disconnect_database),
             Option("Refresh", self.refresh_database),
             Option("Create table", self.create_table),
-            Option("Create user", self.create_user)
+            Option("Add user", self.add_user),
+            Option("Create and add user", self.create_and_add_user)
         ]
-        Option_menu(title, options)
-
-    def render_table_options(self):
-        label = create_label(self.frame, text="Add table")
-        label.bind("<Button-1>", lambda e, name="x": self.change_screen("add_table"))
-        self.table_option_els.append(label)
+        OptionSelectMenu(title, options)
 
     def handle_table_selection(self):
         if len(self.table_els) == 0:
             for t in self.tables:
                 table = Table(self.frame, self.database_title.get(), t, self.change_screen)
                 self.table_els.append(table)
-            self.render_table_options()
 
-        visibility = self.table_els[0].hidden
         for t in self.table_els:
             t.change_visibility()
-
-        for o in self.table_option_els:
-            o.pack_forget() if visibility is True else o.pack()
 
     def rename_database(self, database_name_new):
         self.database_title.set(database_name_new)
@@ -198,10 +190,13 @@ class Database_list_screen:
 
         connect_db = Label(self.screen, text="Connect to db")
         create_db = Label(self.screen, text="Create db")
+        create_user = Label(self.screen, text="Create user")
 
         connect_db.bind("<Button-1>", lambda e, name="database_connect": self.change_screen(name))
         create_db.bind("<Button-1>", lambda e, name="database_create": self.change_screen(name))
+        create_user.bind("<Button-1>", lambda e, name="create_user": self.change_screen(name))
 
+        create_user.pack()
         connect_db.pack()
         create_db.pack()
 
@@ -209,6 +204,9 @@ class Database_list_screen:
 
     def rename_database(self, database_name_old, database_name_new):
         self.databases_els[database_name_old].rename_database(database_name_new)
+        val = self.databases_els[database_name_old]
+        del self.databases_els[database_name_old]
+        self.databases_els[database_name_new] = val
 
     def rename_table(self, database, table_name_old, table_name_new):
         self.databases_els[database].rename_table(table_name_old, table_name_new)

@@ -35,12 +35,13 @@ class ScreenManager:
 			Screen("query_console", Query_console),
 			Screen("database_table", DatabaseTable),
 			Screen("database_create", CreateDatabaseForm, self.add_database),
-			Screen("user_create", Create_user_form),
-			Screen("database_connect", Connect_database_form, self.add_database),
-			Screen("database_rename", Rename_database_form, self.rename_database),
+			Screen("add_user_database", AddUserToDatabase),
+			Screen("database_connect", ConnectDatabaseForm, self.add_database),
+			Screen("database_rename", RenameDatabaseForm, self.rename_database),
 			Screen("table_rename", RenameTable, self.rename_table),
 			Screen("database_table", DatabaseTable),
-			Screen("create_table", CreateTableForm)
+			Screen("create_user", CreateUserForm),
+			Screen("create_and_add_user_database", CreateUserForm)
 		]
 
 	def add_database(self, database):
