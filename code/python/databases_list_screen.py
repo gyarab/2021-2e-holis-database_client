@@ -120,7 +120,7 @@ class Database:
         self.change_screen("database_rename", self.database_title.get())
 
     def create_table(self):
-        self.change_screen("create_table", self.database_title.get())
+        self.change_screen("table_create", self.database_title.get())
 
     def create_database_title(self):
         title = Label(self.frame, textvariable=self.database_title, font=("arial", 16, "bold", "italic"))
@@ -142,8 +142,7 @@ class Database:
     def handle_table_selection(self):
         if len(self.table_els) == 0:
             for t in self.tables:
-                table = Table(self.frame, self.database_title.get(), t, self.change_screen)
-                self.table_els.append(table)
+                self.add_table(t)
 
         for t in self.table_els:
             t.change_visibility()
@@ -158,6 +157,7 @@ class Database:
 
     def add_table(self, table):
         table = Table(self.frame, self.database_title.get(), table, self.change_screen)
+        table.change_visibility()
         self.table_els.append(table)
 
 
