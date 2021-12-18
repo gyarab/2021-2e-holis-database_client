@@ -1,5 +1,6 @@
 from psycopg2 import *
 import json
+from psycopg2 import extras
 
 
 class DatabaseConnection:
@@ -98,14 +99,12 @@ class UserBuilder:
 		if len(options) > 0:
 			command += (" " if len(self.password) > 0 is not None else "") + " ".join(options)
 
-		print(command)
-
 		return command + ";"
 
 
 class Database_builder:
 
-	def execute(self, database_connection, command, values=None, mode='none'):
+	def execute(self, database_connection, command, values=None, mode='none', resAsDict=False):
 		if values is None:
 			values = []
 
@@ -117,7 +116,7 @@ class Database_builder:
 				host=database_connection['host'],
 				port=database_connection['port']
 			)
-			cursor = conn.cursor()
+			cursor = conn.cursor(cursor_factory=extras.RealDictCursor if resAsDict is True else None)
 			res = None
 			cursor.execute(command, values) if len(values) > 0 else cursor.execute(command)
 			conn.commit()
@@ -134,8 +133,8 @@ class Database_builder:
 		except BaseException as ex:
 			raise ex
 
-	def all(self, database_connection, command, values=None):
-		return self.execute(database_connection, command, values, 'all')
+	def all(self, database_connection, command, values=None, asDict=False):
+		return self.execute(database_connection, command, values, 'all', asDict)
 
 	def autocommit_execute(self, command, values=None):
 		conn = connect(database="postgres", user='postgres', password='postgres', host='127.0.0.1', port='5432')
@@ -214,10 +213,10 @@ class Database_builder:
 		if select_params is not None:
 			command += " " + select_params.build_question()
 
-		return self.all(database_connection, command + ';')
+		return self.all(database_connection, command + ';', asDict=True)
 
 	def get_all_table_columns(self, database, table):
-		command = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = %s;'
+		command = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = %s ORDER BY column_name;'
 		database_connection = self.get_database_connection(database)
 		return self.all(database_connection, command, [table])
 
@@ -245,10 +244,7 @@ class Database_builder:
 		database_connection = self.get_database_connection(database)
 		self.execute(database_connection, source)
 
-	def remove_table_row(self, database, table, header, row):
-		command = 'DELETE FROM "' + table + '" WHERE '
-		database_connection = self.get_database_connection(database)
-
+	def build_specific_row_conditions(self, header, row):
 		conditions = []
 		values = []
 
@@ -260,7 +256,7 @@ class Database_builder:
 				condition += " IS NULL "
 			else:
 				values.append(str(row[idx]) if not isinstance(row[idx], tuple) else "".join(row[idx]))
-				condition += " = '%s'"
+				condition += " = %s"
 
 			if idx + 1 < len(header):
 				condition += " AND "
@@ -268,9 +264,60 @@ class Database_builder:
 			conditions.append(condition)
 			idx += 1
 
-		command_whole = command + ''''''.join(conditions) + ";"
-		string_formatted = command_whole % tuple(values)
-		self.execute(database_connection, string_formatted)
+		return " WHERE " + ''''''.join(conditions), values
+
+	def remove_table_row(self, database, table, row):
+		command = 'DELETE FROM "' + table + '"'
+
+		headers = []
+		vals = []
+
+		for k in row:
+			headers.append(k)
+			vals.append(row[k])
+
+		conditions, values = self.build_specific_row_conditions(headers, vals)
+		database_connection = self.get_database_connection(database)
+
+		command_whole = command + conditions + ";"
+		self.execute(database_connection, command_whole, values)
+
+	def add_table_row(self, database, table, header, row):
+		database_connection = self.get_database_connection(database)
+		command = 'INSERT INTO ' + table + '('
+		values = 'VALUES('
+
+		idx = 0
+		for h in header:
+			command += '"' + "".join(h) + '"' + (", " if idx + 1 < len(header) else ") ")
+			values += "%s" + (", " if idx + 1 < len(header) else ")")
+			idx += 1
+
+		command += values
+		self.execute(database_connection, command, row)
+
+	def edit_table_row(self, database, table, new_values, original_values):
+		vals = []
+		headers = []
+
+		for key in original_values:
+			headers.append(key)
+			vals.append(original_values[key])
+
+		database_connection = self.get_database_connection(database)
+		command = 'UPDATE "' + table + '"'
+		conditions, values = self.build_specific_row_conditions(headers, vals)
+		set = ' SET '
+
+		idx = 0
+		for h in headers:
+			set += '"' + "".join(h) + '" = '
+			set += "%s" + (", " if idx + 1 < len(headers) else " ")
+			idx += 1
+
+		values_connected = [y for x in [new_values, values] for y in x]
+		command_whole = command + set + conditions
+		self.execute(database_connection, command_whole, values_connected)
 
 # https://www.psycopg.org/docs/usage.html
 # https://www.postgresql.org/docs/9.1/sql-createdatabase.html

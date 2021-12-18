@@ -1,6 +1,9 @@
-from tkinter import *
+from tkinter import messagebox
 from tkinter.ttk import *
 from code.python.psql.Database_builder import *
+import random
+from code.python.widgets.svg_pic import *
+import re
 
 
 class DatabaseTable:
@@ -13,7 +16,9 @@ class DatabaseTable:
 		self.select_params = SelectParams()
 		self.headers = None
 		self.conditions = None
-		self.table_dict = None
+		self.condition_ids = {}
+		self.add_row_frame = Frame(self.screen)
+		self.update_row_frame = Frame(self.screen)
 
 		self.start()
 
@@ -73,6 +78,15 @@ class DatabaseTable:
 		direction_label.bind("<Button-1>", lambda e: self.order_by(order_by, direction, True))
 		direction_label.pack(side=LEFT)
 
+	def generate_random_id(self):
+		repeat = True
+
+		while repeat is True:
+			n = random.randint(0, 22)
+			if n not in self.condition_ids:
+				self.condition_ids[n] = n
+				return n
+
 	def handle_condition(self, column, value, con_id):
 		column_str = column.get()
 
@@ -100,7 +114,7 @@ class DatabaseTable:
 		return headers
 
 	def render_condition_input(self):
-		con_id = len(self.conditions.winfo_children()) + 1
+		con_id = self.generate_random_id()
 		condition = Frame(self.conditions)
 		condition.pack()
 
@@ -121,9 +135,9 @@ class DatabaseTable:
 		entry.pack(side=LEFT)
 
 		Button(condition, text="Apply",
-						command=lambda: self.handle_condition(column_name, entry.get(), con_id)).pack(side=LEFT)
+		       command=lambda: self.handle_condition(column_name, entry.get(), con_id)).pack(side=LEFT)
 		Button(condition, text="Remove",
-						command=lambda: self.handle_condition_remove(condition, con_id)).pack(side=LEFT)
+		       command=lambda: self.handle_condition_remove(condition, con_id)).pack(side=LEFT)
 
 	def refresh_table(self, args):
 		self.reset_table()
@@ -156,37 +170,80 @@ class DatabaseTable:
 
 		database_builder = Database_builder()
 		for row in rows:
-			row_data = self.table_dict[row]
-			database_builder.remove_table_row(self.database, self.table_name, self.headers, row_data)
+			val = self.get_row_value(row)
+			database_builder.remove_table_row(self.database, self.table_name, val)
 			item_to_delete = self.table.selection()[0]
 			self.table.delete(item_to_delete)
+
+	def edit_row(self):
+		rows = self.table.selection()
+
+		if len(rows) > 1:
+			messagebox.showinfo('Only one line can be edited at a time')
+			return
+
+		edited = self.get_row_value(rows[0])
+		self.add_row_form(edited)
+
+	def add_row(self, entries, original_values):
+		vals = []
+
+		for e in entries:
+			v = e.get()
+			vals.append(v if len(v) > 0 else None)
+
+		if original_values is not None:
+			Database_builder().edit_table_row(self.database, self.table_name, vals, original_values)
+			selected = self.table.focus()
+			self.table.item(selected, values=vals)
+		else:
+			Database_builder().add_table_row(self.database, self.table_name, self.headers, vals)
+			self.table.insert(parent='', index=END, iid=len(self.table.get_children()), text='', values=vals)
+
+		self.reset_add_row_form()
+		self.add_row_frame.pack_forget()
+
+	def reset_add_row_form(self):
+		for ch in self.add_row_frame.winfo_children():
+			ch.destroy()
+
+	def add_row_form(self, values=None):
+		self.reset_add_row_form()
+		self.add_row_frame.pack()
+
+		Label(self.add_row_frame, text="Add row to table").pack()
+		columns = values if values is not None else self.transform_header_to_list()
+		entries = []
+
+		print(values)
+		print(columns)
+		for col in columns:
+			row = Frame(self.add_row_frame)
+			row.pack()
+			Label(row, text=col).pack(side=LEFT)
+
+			e = Entry(row)
+			if values is not None:
+				e.insert(0, columns[col])
+
+			entries.append(e)
+			e.pack(side=LEFT)
+
+		button_text = "Edit row" if values is not None else "Add row"
+		Button(self.add_row_frame, text=button_text, command=lambda: self.add_row(entries, values)).pack()
 
 	def header(self):
 		header = Frame(self.screen)
 
-		refresh = Label(header, text="Refresh")
-		refresh.bind("<Button-1>", self.refresh_table)
-		refresh.pack(side=LEFT)
-
-		refresh = Label(header, text="Reset params")
-		refresh.bind("<Button-1>", self.reset_search_params)
-		refresh.pack(side=LEFT)
-
-		minus = Label(header, text="Minus")
-		minus.bind("<Button-1>", self.remove_rows)
-		minus.pack(side=LEFT)
-
-		previous_page = Label(header, text="Previous page")
-		previous_page.bind("<Button-1>", lambda e: self.change_display_range('down'))
-		previous_page.pack(side=LEFT)
-
+		Icon(header, "refresh.png", self.refresh_table).label.pack(side=LEFT)
+		Icon(header, "reset.png", self.reset_search_params).label.pack(side=LEFT)
+		Icon(header, "delete.png", self.remove_rows).label.pack(side=LEFT)
+		Icon(header, "add.png", lambda e: self.add_row_form()).label.pack(side=LEFT)
+		Icon(header, "edit.png", lambda e: self.edit_row()).label.pack(side=LEFT)
+		Icon(header, "left.png", lambda e: self.change_display_range('down')).label.pack(side=LEFT)
 		actual_columns_number = Label(header, textvariable=self.displayed_set)
 		actual_columns_number.pack(side=LEFT)
-
-		next_page = Label(header, text="Next page")
-		next_page.bind("<Button-1>", lambda e: self.change_display_range('up'))
-		next_page.pack(side=LEFT)
-
+		Icon(header, "right.png", lambda e: self.change_display_range('up')).label.pack(side=LEFT)
 		header.pack()
 
 	def load_table_data(self):
@@ -205,9 +262,28 @@ class DatabaseTable:
 		for col in self.headers:
 			self.table.heading(col, text=col, anchor=CENTER)
 
-		self.table_dict = {}
+		string_headers = self.transform_header_to_list()
+
 		row_id = 0
 		for row in data:
-			self.table_dict[str(row_id)] = row
-			self.table.insert(parent='', index=END, iid=row_id, text='', values=row)
+			r = self.build_row(row, string_headers)
+			self.table.insert(parent='', index=END, iid=row_id, text='', values=r)
 			row_id += 1
+
+	def build_row(self, row, headers):
+		row_val = []
+
+		for h in headers:
+			row_val.append(row[h])
+
+		return row_val
+
+	def get_row_value(self, idx):
+		curRow = self.table.set(idx)
+		edited = {}
+
+		for col in curRow:
+			name = re.sub("['(.*?)+, ]", "", col)
+			edited[name] = curRow[col]
+
+		return edited
