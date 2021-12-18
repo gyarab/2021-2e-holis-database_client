@@ -319,6 +319,11 @@ class Database_builder:
 		command_whole = command + set + conditions
 		self.execute(database_connection, command_whole, values_connected)
 
+	def check_table_existence(self, database, table):
+		database_connection = self.get_database_connection(database)
+		command = "SELECT table_name FROM information_schema.tables WHERE table_name = '" + table + "';"
+		return self.execute(database_connection, command, mode='one')
+
 # https://www.psycopg.org/docs/usage.html
 # https://www.postgresql.org/docs/9.1/sql-createdatabase.html
 # https://pynative.com/python-postgresql-tutorial/

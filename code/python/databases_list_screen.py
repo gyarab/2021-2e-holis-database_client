@@ -4,13 +4,15 @@ from code.python.widgets.popup_menu import *
 
 
 class Table:
-    def __init__(self, root, database, name, change_screen):
+    def __init__(self, root, database, name, change_screen, remove_table):
         self.frame = Frame(root)
         self.database = database
         self.table_title = StringVar()
         self.table_title.set("".join(name))
         self.change_screen = change_screen
         self.hidden = False
+        self.remove_table = remove_table
+        self.options = None
 
         self.create_table_title()
 
@@ -20,6 +22,13 @@ class Table:
                                         icon='warning')
         if MsgBox == 'yes':
             Database_builder().drop_table(self.database, self.table_title.get())
+            self.delete_table()
+
+    def delete_table(self):
+        self.remove_table(self.table_title.get())
+        self.options.popup.destroy()
+        self.frame.pack_forget()
+        self.frame.destroy()
 
     def rename_table_screen(self):
         self.change_screen("table_rename", self.database, self.table_title.get())
@@ -33,9 +42,15 @@ class Table:
         #Database_builder().drop_database()
 
     def refresh_table(self):
-        #TODO check existence
-        #TODO reload table data
-        print("refresh")
+        table_name = self.table_title.get()
+        table = Database_builder().check_table_existence(self.database, table_name)
+
+        if table is None:
+            self.delete_table()
+            messagebox.showinfo('Table doesn\'t exist', 'Table ' + table_name + ' no longer exist')
+            return
+
+        self.change_screen("database_table", self.database, table_name, "refresh")
 
     def create_table_title(self):
         label = Label(self.frame, textvariable=self.table_title, font=("arial", 16, "bold", "italic"))
@@ -49,7 +64,7 @@ class Table:
             Option("Refresh", self.refresh_table)
         ]
 
-        OptionSelectMenu(label, options)
+        self.options = OptionSelectMenu(label, options)
         label.pack()
 
     def change_visibility(self):
@@ -156,9 +171,14 @@ class Database:
                 t.rename(table_name_new)
 
     def add_table(self, table):
-        table = Table(self.frame, self.database_title.get(), table, self.change_screen)
+        table = Table(self.frame, self.database_title.get(), table, self.change_screen, self.remove_table)
         table.change_visibility()
         self.table_els.append(table)
+
+    def remove_table(self, table):
+        for t in self.table_els:
+            if t.table_title.get() == table:
+                self.table_els.remove(t)
 
 
 class Database_list_screen:

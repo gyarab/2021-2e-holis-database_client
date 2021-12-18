@@ -31,6 +31,9 @@ class ScreenManager:
 	def __init__(self):
 		self.active = None
 		self.database_list = Database_list_screen(main, self.change_screen)
+		self.active_db = None
+		self.active_table = None
+
 		self.screens = [
 			Screen("query_console", Query_console),
 			Screen("database_table", DatabaseTable),
@@ -58,22 +61,44 @@ class ScreenManager:
 		self.database_list.add_table(database, table)
 
 	def change_screen(self, screen, *data):
+		if screen == self.active and screen == "database_table":
+			if data[0] == self.active_db and data[1] == self.active_table and len(data) == 3 and data[2] == "refresh":
+				screen = self.get_screen_by_name()
+				screen.screen.reset_search_params(None)
+				return
+			elif data[0] == self.active_db and data[1] == self.active_table:
+				return
+
+			self.active_db = data[0]
+			self.active_table = data[1]
+
+		if screen == "database_table" and len(data) == 3 and data[2] == "refresh":
+			return
+
+		if screen == "database_table":
+			self.active_db = data[0]
+			self.active_table = data[1]
+
 		self.screen_switch('hide')
 		self.active = screen
 		self.screen_switch('show', data)
 
 	def screen_switch(self, mode, data=None):
+		screen = self.get_screen_by_name()
+
+
+		if screen.active is False:
+			screen.activate(data)
+		elif mode == 'show':
+			screen.already_activated(data)
+
+		screen_el = screen.screen.screen
+		screen_el.pack(side=RIGHT, fill=BOTH) if mode == 'show' else screen_el.pack_forget()
+
+	def get_screen_by_name(self):
 		for sc in self.screens:
 			if sc.name == self.active:
-				if sc.active is False:
-					sc.activate(data)
-				elif mode == 'show':
-					sc.already_activated(data)
-
-				screen = sc.screen.screen
-
-				screen.pack(side=RIGHT, fill=BOTH) if mode == 'show' else screen.pack_forget()
-				break
+				return sc
 
 	def start(self):
 		self.database_list.show().pack(side=LEFT, fill="y")
