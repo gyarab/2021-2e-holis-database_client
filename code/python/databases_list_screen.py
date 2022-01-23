@@ -80,7 +80,7 @@ class Table:
 
 class Database:
     def __init__(self, root, name, change_screen):
-        self.frame = Frame(root)
+        self.frame = Frame(root, bd=1, relief="solid")
         try:
             self.tables = Database_builder().get_all_tables(name)
         except BaseException as ex:
@@ -90,7 +90,7 @@ class Database:
         self.database_title.set(name)
         self.table_els = []
         self.change_screen = change_screen
-        self.frame.pack()
+        self.frame.pack(expand=True, fill=BOTH)
         self.create_database_title()
 
     def open_query_console(self):
@@ -138,9 +138,11 @@ class Database:
         self.change_screen("table_create", self.database_title.get())
 
     def create_database_title(self):
-        title = Label(self.frame, textvariable=self.database_title, font=("arial", 16, "bold", "italic"))
+        title = Label(self.frame, textvariable=self.database_title,
+                      font=("arial", 16, "bold", "italic"),
+                      anchor="w", bg="blue")
         title.bind("<Button-1>", lambda e: self.handle_table_selection())
-        title.pack()
+        title.pack(expand=True, fill=BOTH)
 
         options = [
             Option("Query console", self.open_query_console),
@@ -183,14 +185,34 @@ class Database:
 
 class Database_list_screen:
     def __init__(self, screen, change_screen):
-        self.screen = screen
+        self.screen = Frame(screen)
+        canvas = Canvas(self.screen)
+        scrollbar = Scrollbar(self.screen, orient="vertical", command=canvas.yview)
+
         self.databases = []
-        self.screen = LabelFrame(self.screen, text="Databases", width=300, font=('verdana', 10, 'bold'),
+        list = LabelFrame(canvas, text="Databases", width=300, font=('verdana', 10, 'bold'),
                                  borderwidth=3, relief=RIDGE, highlightthickness=4, bg="white", highlightcolor="white",
                                  highlightbackground="white", fg="#248aa2")
+
+        list.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+
+        canvas.create_window((0, 0), window=list, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
         self.change_screen = change_screen
-        self.database_list = Frame(self.screen)
+        self.database_list = Frame(list)
         self.database_list.pack()
+
+        self.database_actions = Frame(list)
+        self.database_actions.pack(fill=X)
+
         self.databases_els = {}
 
     def load_databases(self):
@@ -208,17 +230,17 @@ class Database_list_screen:
         for d in self.databases:
             self.databases_els[d] = Database(self.database_list, d, self.change_screen)
 
-        connect_db = Label(self.screen, text="Connect to db")
-        create_db = Label(self.screen, text="Create db")
-        create_user = Label(self.screen, text="Create user")
+        connect_db = Label(self.database_actions, text="Connect to db", anchor="w", bg="green")
+        create_db = Label(self.database_actions, text="Create db", anchor="w", bg="green")
+        create_user = Label(self.database_actions, text="Create user", anchor="w", bg="green")
 
         connect_db.bind("<Button-1>", lambda e, name="database_connect": self.change_screen(name))
         create_db.bind("<Button-1>", lambda e, name="database_create": self.change_screen(name))
         create_user.bind("<Button-1>", lambda e, name="create_user": self.change_screen(name))
 
-        create_user.pack()
-        connect_db.pack()
-        create_db.pack()
+        create_user.pack(fill=BOTH, expand=True)
+        connect_db.pack(fill=BOTH, expand=True)
+        create_db.pack(fill=BOTH, expand=True)
 
         return self.screen
 
