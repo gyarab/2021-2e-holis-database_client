@@ -1,3 +1,4 @@
+import copy
 from tkinter import messagebox
 from tkinter.ttk import *
 from code.python.psql.Database_builder import *
@@ -19,6 +20,7 @@ class DatabaseTable:
 		self.condition_ids = {}
 		self.add_row_frame = Frame(self.screen)
 		self.update_row_frame = Frame(self.screen)
+		self.row_count = IntVar()
 
 		self.start()
 
@@ -31,15 +33,26 @@ class DatabaseTable:
 		if self.select_params.offset == 0 and mode == 'down':
 			return
 
-		self.reset_table()
-
 		offset = self.select_params.offset
 		limit = self.select_params.limit
 
-		self.select_params.change_range(
-			offset + 100 if mode == 'up' else offset - 100,
-			limit + 100 if mode == 'up' else limit - 100
-		)
+		if limit == self.row_count.get() and mode == 'up':
+			messagebox.showinfo('Limit warning', 'You are at the maximum of all available rows. You can\' go any higher.')
+			return
+
+		if mode == 'up':
+			offset = offset + 100
+		else:
+			offset = offset - 100
+
+		if mode == 'up':
+			limit = limit + self.row_count.get() - limit if limit + 100 > self.row_count.get() else limit + 100
+		else:
+			limit = limit - 100 if limit % 100 == 0 else limit - (limit - offset - 100)
+
+		self.select_params.change_range(offset, limit)
+
+		self.reset_table()
 
 		self.change_display_range_text()
 		self.load_table()
@@ -65,11 +78,10 @@ class DatabaseTable:
 		direction = StringVar()
 
 		headers = self.transform_header_to_list()
-
+		order_by.set(headers[0])
 		OptionMenu(
 			filters,
 			order_by,
-			headers[0],
 			*headers,
 			command=lambda e: self.order_by(order_by, direction)).pack(side=LEFT)
 
@@ -118,16 +130,15 @@ class DatabaseTable:
 		condition = Frame(self.conditions)
 		condition.pack()
 
-		Label(condition, text="Condition").pack(side=LEFT)
-		Label(condition, text="Column").pack()
+		Label(condition, text="Column").pack(side=LEFT)
 		column_name = StringVar()
 
 		headers = self.transform_header_to_list()
 
+		column_name.set(headers[0])
 		OptionMenu(
 			condition,
 			column_name,
-			headers[0],
 			*headers).pack(side=LEFT)
 
 		Label(condition, text="Value").pack(side=LEFT)
@@ -153,7 +164,6 @@ class DatabaseTable:
 
 	def start(self):
 		self.load_header_header()
-		self.change_display_range_text()
 
 		self.header()
 		self.order_by_button()
@@ -165,6 +175,11 @@ class DatabaseTable:
 		self.screen.pack()
 		self.load_table()
 
+		if self.row_count.get() < self.select_params.limit:
+			self.select_params.change_range(self.select_params.offset, self.row_count.get())
+
+		self.change_display_range_text()
+
 	def remove_rows(self, args):
 		rows = self.table.selection()
 
@@ -174,6 +189,8 @@ class DatabaseTable:
 			database_builder.remove_table_row(self.database, self.table_name, val)
 			item_to_delete = self.table.selection()[0]
 			self.table.delete(item_to_delete)
+
+		self.get_table_row_count()
 
 	def edit_row(self):
 		rows = self.table.selection()
@@ -202,6 +219,7 @@ class DatabaseTable:
 
 		self.reset_add_row_form()
 		self.add_row_frame.pack_forget()
+		self.get_table_row_count()
 
 	def reset_add_row_form(self):
 		for ch in self.add_row_frame.winfo_children():
@@ -209,14 +227,12 @@ class DatabaseTable:
 
 	def add_row_form(self, values=None):
 		self.reset_add_row_form()
-		self.add_row_frame.pack()
+		self.add_row_frame.pack(fill=BOTH)
 
 		Label(self.add_row_frame, text="Add row to table").pack()
 		columns = values if values is not None else self.transform_header_to_list()
 		entries = []
 
-		print(values)
-		print(columns)
 		for col in columns:
 			row = Frame(self.add_row_frame)
 			row.pack()
@@ -241,10 +257,20 @@ class DatabaseTable:
 		Icon(header, "add.png", lambda e: self.add_row_form()).label.pack(side=LEFT)
 		Icon(header, "edit.png", lambda e: self.edit_row()).label.pack(side=LEFT)
 		Icon(header, "left.png", lambda e: self.change_display_range('down')).label.pack(side=LEFT)
-		actual_columns_number = Label(header, textvariable=self.displayed_set)
-		actual_columns_number.pack(side=LEFT)
+		Label(header, textvariable=self.displayed_set).pack(side=LEFT)
 		Icon(header, "right.png", lambda e: self.change_display_range('up')).label.pack(side=LEFT)
+		Label(header, text="Row count:").pack(side=LEFT)
+		Label(header, textvariable=self.row_count).pack(side=LEFT)
 		header.pack()
+
+	def get_table_row_count(self):
+		params = copy.copy(self.select_params)
+		params.offset = None
+		params.limit = None
+
+		row_count = Database_builder().get_table_row_count(self.database, self.table_name, params)
+
+		self.row_count.set(row_count[0][0])
 
 	def load_table_data(self):
 		return Database_builder().get_all_table_data(self.database, self.table_name, self.select_params)
@@ -254,13 +280,24 @@ class DatabaseTable:
 
 	def load_table(self):
 		data = self.load_table_data()
+		self.get_table_row_count()
 
 		if self.table is None:
-			self.table = Treeview(self.screen, columns=self.headers, show='headings')
+			table_frame = Frame(self.screen)
+			table_frame.pack()
+			table_scroll_y = Scrollbar(table_frame)
+			table_scroll_y.pack(side=RIGHT, fill=Y)
+			table_scroll_x = Scrollbar(table_frame, orient='horizontal')
+			style = Style()
+			style.theme_use()
+			self.table = Treeview(table_frame, height=20, columns=self.headers, show='headings', yscrollcommand=table_scroll_y.set, xscrollcommand=table_scroll_x.set)
 			self.table.pack(fill=BOTH)
+			table_scroll_y.configure(command=self.table.yview)
+			table_scroll_x.pack(fill=X)
+			table_scroll_x.configure(command=self.table.xview)
 
-		for col in self.headers:
-			self.table.heading(col, text=col, anchor=CENTER)
+			for col in self.headers:
+				self.table.heading(col, text=col, anchor=CENTER)
 
 		string_headers = self.transform_header_to_list()
 

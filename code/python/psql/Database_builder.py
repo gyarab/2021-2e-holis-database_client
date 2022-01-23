@@ -215,6 +215,15 @@ class Database_builder:
 
 		return self.all(database_connection, command + ';', asDict=True)
 
+	def get_table_row_count(self, database, table, select_params=None):
+		database_connection = self.get_database_connection(database)
+		command = 'SELECT COUNT(*) FROM "' + table + '"'
+
+		if select_params is not None:
+			command += " " + select_params.build_question()
+
+		return self.all(database_connection, command + ';')
+
 	def get_all_table_columns(self, database, table):
 		command = 'SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = %s ORDER BY column_name;'
 		database_connection = self.get_database_connection(database)
