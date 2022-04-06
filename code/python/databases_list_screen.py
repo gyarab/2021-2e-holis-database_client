@@ -79,8 +79,10 @@ class Table:
 
 
 class Database:
-    def __init__(self, root, name, change_screen):
+    def __init__(self, root, name, change_screen, resize):
         self.frame = Frame(root, bd=1, relief="solid")
+        self.frame.bind("<Configure>", resize)
+
         try:
             self.tables = Database_builder().get_all_tables(name)
         except BaseException as ex:
@@ -183,14 +185,29 @@ class Database:
                 self.table_els.remove(t)
 
 
+class ResizingCanvas(Canvas):
+    def __init__(self,parent,**kwargs):
+        Canvas.__init__(self,parent,**kwargs)
+        self.height = self.winfo_reqheight()
+        self.width = self.winfo_reqwidth()
+
+    def on_resize(self, width):
+        print(width)
+        wscale = float(width)/self.width
+        hscale = 1
+        self.width = width
+        self.config(width=self.width, height=self.height)
+        self.scale("all", 0, 0, wscale, hscale)
+
+
 class Database_list_screen:
     def __init__(self, screen, change_screen):
         self.screen = Frame(screen)
-        canvas = Canvas(self.screen)
+        self.canvas = ResizingCanvas(self.screen)
         scrollbar = Scrollbar(self.screen, orient="vertical", command=canvas.yview)
 
         self.databases = []
-        list = LabelFrame(canvas, text="Databases", width=300, font=('verdana', 10, 'bold'),
+        self.list = list = LabelFrame(self.canvas, text="Databases", width=300, font=('verdana', 10, 'bold'),
                                  borderwidth=3, relief=RIDGE, highlightthickness=4, bg="white", highlightcolor="white",
                                  highlightbackground="white", fg="#248aa2")
 
@@ -201,10 +218,11 @@ class Database_list_screen:
             )
         )
 
-        canvas.create_window((0, 0), window=list, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        self.canvas.create_window((0, 0), window=list, anchor="nw")
+        self.canvas.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side="left", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
+        self.canvas.pack(fill=BOTH, expand=True)
+        self.canvas.addtag_all("all")
 
         self.change_screen = change_screen
         self.database_list = Frame(list)
@@ -222,13 +240,13 @@ class Database_list_screen:
             self.databases.append(con)
 
     def add_database(self, database):
-        self.databases_els[database] = Database(self.database_list, database, self.change_screen)
+        self.databases_els[database] = Database(self.database_list, database, self.change_screen, lambda e: self.canvas.on_resize(self.list.winfo_width()))
 
     def show(self):
         self.load_databases()
 
         for d in self.databases:
-            self.databases_els[d] = Database(self.database_list, d, self.change_screen)
+            self.databases_els[d] = Database(self.database_list, d, self.change_screen, lambda e: self.canvas.on_resize(self.list.winfo_width()))
 
         connect_db = Label(self.database_actions, text="Connect to db", anchor="w", bg="green")
         create_db = Label(self.database_actions, text="Create db", anchor="w", bg="green")
