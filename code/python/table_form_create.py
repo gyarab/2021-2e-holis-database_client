@@ -3,6 +3,7 @@ from tkinter import *
 from code.python.psql.Database_builder import *
 import re
 import random
+from .widgets.ScrollableFrame import ScrollableFrame
 
 
 class TableRow:
@@ -44,65 +45,24 @@ class CreateTableForm:
 		self.database = data[0]
 		self.rows = {}
 
-		self.screen = Frame(root)
-		self.screen.pack()
-		Label(self.screen, text="Create table").pack()
+		self.screen = ScrollableFrame(root)
+		self.main = self.screen.scrollable_frame
+		Label(self.main, text="Create table", height=2, pady=1, font=('Arial', 25, 'bold'), justify=CENTER).pack()
 
-		Label(self.screen, text="Table name")
-		self.table_name_entry = Entry(self.screen)
+		Label(self.main, text="Table name", font=('Arial', 12, 'bold')).pack()
+		self.table_name_entry = Entry(self.main)
 		self.table_name_entry.pack()
-		Label(self.screen, text="Table name can only contain lower case letters").pack()
+		Label(self.main, text="Table name can only contain lower case letters").pack()
 
-		self.fields = Frame(self.screen)
+		self.fields = Frame(self.main)
 		self.fields.pack()
+		self.generated_sql_textbox = Text(self.main)
 
 		self.start()
 
 	def create_table(self):
-		table_name = self.table_name_entry.get().lower()
+		command, table_name = self.generate_create_table()
 
-		if table_name == '':
-			messagebox.showinfo('Table name', 'Table name is missing')
-			return
-
-		name_checked = re.match("([_#@a-z0-9])+", table_name)
-
-		if not name_checked or len(name_checked.group()) < len(table_name):
-			messagebox.showinfo('Wrong letters', '''Your table name contains invalid characters. 
-																		Only valid characters are #, @, _, a-z and 0-9''')
-			return
-
-		primary_key = None
-		command = "CREATE TABLE " + table_name + " ("
-
-		row_idx = 0
-		for row in self.rows:
-			row_idx += 1
-			vals = []
-
-			i = 0
-			for f in self.rows[row]:
-				i += 1
-
-				val = f.get()
-				if (i == 1 or i == 2) and len(val) == 0:
-					messagebox.showinfo('Missing value',
-										'In column ' + str(row_idx) + ' is missing ' + ('name' if i == 1 else 'datatype'))
-					return
-
-				if i == 6 and val == 1:
-					if primary_key is True:
-						messagebox.showinfo('Primary key', 'Only one column can be primary key')
-						return
-
-					primary_key = True
-
-				vals.append(val)
-
-			row_sql = TableRow(*vals)
-			command += row_sql.create_sql_row() + (", " if row_idx != len(self.rows) else "")
-
-		command += ");"
 		try:
 			Database_builder().create_table(self.database, command)
 			self.cb(self.database, table_name)
@@ -113,7 +73,7 @@ class CreateTableForm:
 
 			if invalid_datatype:
 				messagebox.showinfo('Wrong type', invalid_datatype.group() +
-										' see https://www.postgresql.org/docs/9.5/datatype.html for all possible data types.')
+				                    ' see https://www.postgresql.org/docs/9.5/datatype.html for all possible data types.')
 				return
 
 			relation_exist = re.search("relation \"(.+)\" already exists", ex)
@@ -127,19 +87,70 @@ class CreateTableForm:
 
 			messagebox.showinfo('Error', 'We are sorry, but something went wrong, Error: ' + ex)
 
+	def generate_create_table(self):
+		table_name = self.table_name_entry.get().lower()
+
+		if table_name == '':
+			messagebox.showinfo('Table name', 'Table name is missing')
+			return
+
+		name_checked = re.match("([_#@a-z0-9])+", table_name)
+
+		if not name_checked or len(name_checked.group()) < len(table_name):
+			messagebox.showinfo('Wrong letters', '''Your table name contains invalid characters. 
+																					Only valid characters are #, @, _, a-z and 0-9''')
+			return
+
+		primary_key = None
+		command = "CREATE TABLE " + table_name + " (\n"
+
+		row_idx = 0
+		for id in self.rows:
+			row = self.rows[id]
+			row_idx += 1
+
+			vals = [
+				row['column_name'].get(),
+				row['column_type'].get(),
+				row['column_default'].get(),
+				row['not_null'].get(),
+				row['unique'].get(),
+				row['primary_key'].get()
+			]
+
+			if len(vals[0]) == 0 or len(vals[1]) == 0:
+				messagebox.showinfo('Missing value',
+				                    'In column ' + ('name' if len(vals[0]) == 0 else 'datatype'))
+				return
+
+			if vals[5] == 1:
+				if primary_key is True:
+					messagebox.showinfo('Primary key', 'Only one column can be primary key')
+					return
+				primary_key = True
+
+			row_sql = TableRow(*vals)
+			command += "    " + row_sql.create_sql_row() + (", \n" if row_idx != len(self.rows) else "\n")
+
+		command += ");"
+		return command, table_name
+
+	def generate_sql(self):
+		if not self.generated_sql_textbox.winfo_ismapped():
+			self.generated_sql_textbox.pack()
+
+		command, table_name = self.generate_create_table()
+		self.generated_sql_textbox.delete('1.0', END)
+		self.generated_sql_textbox.insert("1.0", command)
+
 	def start(self):
 		self.create_field()
-		Button(self.screen, text="Add column", command=self.create_field).pack(side=LEFT)
-		Button(self.screen, text="Create table", command=self.create_table).pack(side=LEFT)
-
-	def remove_row(self, row1, row2, row3, row_id):
-		row1.pack_forget()
-		row1.destroy()
-		row2.pack_forget()
-		row2.destroy()
-		row3.pack_forget()
-		row3.destroy()
-		del self.rows[row_id]
+		Button(self.main, text="Add column", command=self.create_field,
+		       height=1, bg="#A877BA", font=('Arial', 16, 'bold'), pady=5).pack(side=TOP)
+		Button(self.main, text="Create table", command=self.create_table,
+		       height=1, bg="#A877BA", font=('Arial', 16, 'bold'), pady=5).pack(side=TOP)
+		Button(self.main, text="Generate create table", command=self.generate_sql,
+		       height=1, bg="#A877BA", font=('Arial', 16, 'bold'), pady=5).pack(side=TOP)
 
 	def generate_random_id(self):
 		repeat = True
@@ -151,38 +162,48 @@ class CreateTableForm:
 
 	def create_field(self):
 		row_id = self.generate_random_id()
-		row = []
+		row = {}
 
-		row1 = Frame(self.fields)
-		Label(row1, text="Name").pack(side=LEFT)
-		Label(row1, text="Type").pack(side=LEFT)
-		Label(row1, text="Default (optional)").pack(side=LEFT)
-		row1.pack()
+		row_el = Frame(self.fields)
+		row_el.pack()
+		column1 = Frame(row_el, height=150)
+		Label(column1, text="Name", font=('Arial', 12, 'bold')).pack()
+		row['column_name'] = self.create_entry(column1)
+		row['not_null'] = self.create_checkbutton(column1, "Not null")
+		column1.pack(side=LEFT)
 
-		row2 = Frame(self.fields)
-		self.create_entry(row2, row)
-		self.create_entry(row2, row)
-		self.create_entry(row2, row)
-		row2.pack()
+		column2 = Frame(row_el)
+		Label(column2, text="Type", font=('Arial', 12, 'bold')).pack()
+		row['column_type'] = self.create_entry(column2)
+		row['unique'] = self.create_checkbutton(column2, "Unique")
+		column2.pack(side=LEFT)
 
-		row3 = Frame(self.fields)
-		self.create_checkbutton(row3, row, "Not null")
-		self.create_checkbutton(row3, row, "Unique")
-		self.create_checkbutton(row3, row, "Primary key")
+		column3 = Frame(row_el)
+		Label(column3, text="Default (optional)", font=('Arial', 12, 'bold')).pack()
+		row['column_default'] = self.create_entry(column3)
+		row['primary_key'] = self.create_checkbutton(column3, "Primary key")
+
+		column3.pack(side=LEFT)
 
 		if len(self.rows) > 0:
-			Button(row3, text="Remove field", command=lambda: self.remove_row(row1, row2, row3, row_id)).pack(side=LEFT)
+			removeEl = Button(self.fields, text="Remove field")
+			removeEl.pack()
 
-		row3.pack()
+			def remove():
+				row_el.destroy()
+				removeEl.destroy()
+
+			removeEl['command'] = lambda: remove()
 
 		self.rows[row_id] = row
 
-	def create_entry(self, parent, row):
+	def create_entry(self, parent):
 		e = Entry(parent)
-		row.append(e)
-		e.pack(side=LEFT)
+		e.pack()
+		return e
 
-	def create_checkbutton(self, parent, row, text):
+	def create_checkbutton(self, parent, text):
 		var = IntVar()
-		Checkbutton(parent, text=text, variable=var).pack(side=LEFT)
-		row.append(var)
+		checkbox = Checkbutton(parent, text=text, variable=var)
+		checkbox.pack()
+		return var
