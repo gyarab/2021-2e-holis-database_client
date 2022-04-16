@@ -67,6 +67,7 @@ class CreateTableForm:
 			Database_builder().create_table(self.database, command)
 			self.cb(self.database, table_name)
 			messagebox.showinfo('Success', 'Your table was successfully created')
+			self.clean_form()
 		except BaseException as ex:
 			ex = str(ex)
 			invalid_datatype = re.search("type \"(.+)\" does not exist", ex)
@@ -86,6 +87,32 @@ class CreateTableForm:
 				return
 
 			messagebox.showinfo('Error', 'We are sorry, but something went wrong, Error: ' + ex)
+
+	def clean_form(self):
+		self.table_name_entry.delete(0, 'end')
+
+		row_i = 0
+		for id in self.rows:
+			row_i += 1
+			row = self.rows[id]
+
+			if row_i == 1:
+				row['column_name'].delete(0, 'end')
+				row['column_type'].delete(0, 'end')
+				row['column_default'].delete(0, 'end')
+				row['not_null'].set(0)
+				row['unique'].set(0)
+				row['primary_key'].set(0)
+				continue
+			row['destroy_field']()
+
+		row_i = 0
+		for id in self.rows:
+			row_i += 1
+			if row_i > 0:
+				del self.rows[id]
+
+		self.generated_sql_textbox.pack_forget()
 
 	def generate_create_table(self):
 		table_name = self.table_name_entry.get().lower()
@@ -189,11 +216,14 @@ class CreateTableForm:
 			removeEl = Button(self.fields, text="Remove field")
 			removeEl.pack()
 
-			def remove():
+			def remove(delete_field=False):
+				if delete_field is True:
+					del self.rows[row_id]
 				row_el.destroy()
 				removeEl.destroy()
 
-			removeEl['command'] = lambda: remove()
+			row['destroy_field'] = lambda: remove()
+			removeEl['command'] = lambda: remove(True)
 
 		self.rows[row_id] = row
 

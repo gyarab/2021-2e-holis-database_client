@@ -1,5 +1,6 @@
 from tkinter import *
 
+
 class Option:
 	def __init__(self, name, command, separator=False):
 		self.name = name
@@ -25,3 +26,9 @@ class OptionSelectMenu:
 		finally:
 			# Release the grab
 			self.popup.grab_release()
+
+	def destroy(self):
+		self.popup.unpost()
+		self.popup.grab_release()
+		self.popup.pack_forget()
+		self.popup.destroy()

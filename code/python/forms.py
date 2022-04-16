@@ -48,6 +48,13 @@ class CreateDatabaseForm:
 		try:
 			Database_builder().create_db(values[0], values[1])
 			self.form.clear()
+
+			database_connection = DatabaseConnection(database=values[0], user=values[1], password="")
+
+			Database_builder().save_database_connection(database_connection)
+			self.form.clear()
+			self.cb(values[0])
+
 			messagebox.showinfo('Database creation', 'Database was successfully created')
 		except BaseException as ex:
 			ex = str(ex)
