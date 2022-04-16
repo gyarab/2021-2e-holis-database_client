@@ -47,6 +47,7 @@ class CreateDatabaseForm:
 
 		try:
 			Database_builder().create_db(values[0], values[1])
+			self.form.clear()
 			messagebox.showinfo('Database creation', 'Database was successfully created')
 		except BaseException as ex:
 			ex = str(ex)
@@ -96,6 +97,7 @@ class AddUserToDatabase:
 
 		try:
 			Database_builder().add_user(self.database, values[0])
+			self.form.clear()
 			messagebox.showinfo('information', 'User was successfully created')
 		except BaseException as ex:
 			ex = str(ex)
@@ -151,6 +153,7 @@ class CreateUserForm:
 			else:
 				Database_builder().create_user(user_builder)
 				messagebox.showinfo('information', 'User was successfully created')
+			self.form.clear()
 		except BaseException as ex:
 			ex = str(ex)
 
@@ -220,6 +223,7 @@ class ConnectDatabaseForm:
 			if mode is not "test":
 				Database_builder().save_database_connection(database_connection)
 				self.cb(values[0])
+				self.form.clear()
 			messagebox.showinfo('Correct credentials', 'Credentials for connection are correct')
 		except BaseException as ex:
 			ex = str(ex)
@@ -286,6 +290,7 @@ class RenameDatabaseForm:
 			messagebox.showinfo("Database rename", "Your database was successfully renamed")
 			self.cb(self.database, values[0])
 			self.database = values[0]
+			self.form.clear()
 		except BaseException as ex:
 			ex = str(ex)
 
@@ -343,5 +348,6 @@ class RenameTable:
 			messagebox.showinfo("Table rename", "Table" + self.table + " was successfully renamed")
 			self.cb(self.database, self.table, values[0])
 			self.table = values[0]
+			self.form.clear()
 		except BaseException as ex:
 			messagebox.showinfo('Error', 'We are sorry, but something went wrong, Error: ' + str(ex))

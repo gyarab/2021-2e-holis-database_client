@@ -45,6 +45,10 @@ class Form:
 			idx += 1
 		return vals
 
+	def clear(self):
+		for en in self.entries:
+			en.delete(0, 'end')
+
 	def show_fields(self):
 		i = 0
 		for f in self.fields:
