@@ -37,10 +37,6 @@ class Table:
         print("Drop table")
         #Database_builder().drop_database()
 
-    def open_query_console(self):
-        print("Drop table")
-        #Database_builder().drop_database()
-
     def refresh_table(self):
         table_name = self.table_title.get()
         table = Database_builder().check_table_existence(self.database, table_name)
@@ -57,7 +53,6 @@ class Table:
         label.bind('<Double-Button-1>', lambda e, name="database_table": self.change_screen(name, self.database, self.table_title.get()))
 
         options = [
-            Option("Query console", self.open_query_console),
             Option("Rename table", self.rename_table_screen),
             Option("Drop", self.drop_table),
             Option("Modify", self.modify_table),
@@ -94,9 +89,6 @@ class Database:
         self.change_screen = change_screen
         self.frame.pack(expand=True, fill=BOTH)
         self.create_database_title()
-
-    def open_query_console(self):
-        self.change_screen("query_console", self.database_title.get())
 
     def add_user(self):
         self.change_screen("add_user_database", self.database_title.get())
@@ -147,7 +139,6 @@ class Database:
         title.pack(expand=True, fill=BOTH)
 
         options = [
-            Option("Query console", self.open_query_console),
             Option("Rename", self.open_rename_database_screen),
             Option("Drop", self.drop_database),
             Option("Disconnect", self.disconnect_database),
@@ -192,7 +183,6 @@ class ResizingCanvas(Canvas):
         self.width = self.winfo_reqwidth()
 
     def on_resize(self, width):
-        print(width)
         wscale = float(width)/self.width
         hscale = 1
         self.width = width
@@ -203,8 +193,8 @@ class ResizingCanvas(Canvas):
 class Database_list_screen:
     def __init__(self, screen, change_screen):
         self.screen = Frame(screen)
-        self.canvas = ResizingCanvas(self.screen)
-        scrollbar = Scrollbar(self.screen, orient="vertical", command=canvas.yview)
+        self.canvas = ResizingCanvas(self.screen, bg="blue")
+        scrollbar = Scrollbar(self.screen, orient="vertical", command=self.canvas.yview)
 
         self.databases = []
         self.list = list = LabelFrame(self.canvas, text="Databases", width=300, font=('verdana', 10, 'bold'),
@@ -213,8 +203,8 @@ class Database_list_screen:
 
         list.bind(
             "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
+            lambda e: self.canvas.configure(
+                scrollregion=self.canvas.bbox("all")
             )
         )
 
@@ -248,17 +238,15 @@ class Database_list_screen:
         for d in self.databases:
             self.databases_els[d] = Database(self.database_list, d, self.change_screen, lambda e: self.canvas.on_resize(self.list.winfo_width()))
 
-        connect_db = Label(self.database_actions, text="Connect to db", anchor="w", bg="green")
-        create_db = Label(self.database_actions, text="Create db", anchor="w", bg="green")
-        create_user = Label(self.database_actions, text="Create user", anchor="w", bg="green")
+        def create_link(text, name):
+            link = Label(self.database_actions, text=text, anchor="w", bg="green")
+            link.bind("<Button-1>", lambda e: self.change_screen(name))
+            link.pack(fill=BOTH, expand=True)
 
-        connect_db.bind("<Button-1>", lambda e, name="database_connect": self.change_screen(name))
-        create_db.bind("<Button-1>", lambda e, name="database_create": self.change_screen(name))
-        create_user.bind("<Button-1>", lambda e, name="create_user": self.change_screen(name))
-
-        create_user.pack(fill=BOTH, expand=True)
-        connect_db.pack(fill=BOTH, expand=True)
-        create_db.pack(fill=BOTH, expand=True)
+        create_link("Connect to db", "database_connect")
+        create_link("Create db", "database_create")
+        create_link("Connect user", "create_user")
+        create_link("Home", "home")
 
         return self.screen
 

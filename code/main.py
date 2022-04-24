@@ -1,11 +1,11 @@
 from code.python.databases_list_screen import *
 from code.python.forms import *
-from code.python.query_console import *
 from code.python.database_table import *
 from code.python.table_form_create import *
+from code.python.home_screen import *
 
 main = Tk()
-main.geometry("800x800")
+main.geometry("1000x800")
 main.title('PSQL database client')
 
 
@@ -35,7 +35,7 @@ class ScreenManager:
 		self.active_table = None
 
 		self.screens = [
-			Screen("query_console", Query_console),
+			Screen("home", HomeScreen, self.change_screen),
 			Screen("database_table", DatabaseTable),
 			Screen("database_create", CreateDatabaseForm, self.add_database),
 			Screen("add_user_database", AddUserToDatabase),
@@ -45,7 +45,7 @@ class ScreenManager:
 			Screen("database_table", DatabaseTable),
 			Screen("create_user", CreateUserForm),
 			Screen("create_and_add_user_database", CreateUserForm),
-			Screen("table_create", CreateTableForm, self.add_table)
+			Screen("table_create", CreateTableForm, self.add_table),
 		]
 
 	def add_database(self, database):
@@ -93,7 +93,7 @@ class ScreenManager:
 			screen.already_activated(data)
 
 		screen_el = screen.screen.screen
-		screen_el.pack(side=RIGHT, fill=BOTH) if mode == 'show' else screen_el.pack_forget()
+		screen_el.pack(side=LEFT, fill=BOTH, expand=True) if mode == 'show' else screen_el.pack_forget()
 
 	def get_screen_by_name(self):
 		for sc in self.screens:
@@ -102,7 +102,7 @@ class ScreenManager:
 
 	def start(self):
 		self.database_list.show().pack(side=LEFT, fill="y")
-		self.active = "database_create"
+		self.active = "home"
 		self.screen_switch("show")
 
 
