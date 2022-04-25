@@ -32,13 +32,16 @@ class HomeScreen:
 
 	def render_description(self):
 		Label(self.main,
-		      text="""
+	      text="""
 		      In this application you can manage your databases, tables and their data. All at one place.
 		      Here from home screen you can go explore appplication itself or read some informations first
-		      and tips where to look when you need something.  
+		      and tips where to look when you need something. Only requirements you will need are PostgreSQL
+		      database with one super which is at the start of application prefilled as a postgres. This user 
+		      can be changed on the Application user form screen. On which you can get by clicking on a link at
+		      the bottom of the database list.
 	      """,
-		      anchor=W
-		      ).pack(fill=BOTH)
+	      anchor=W
+	    ).pack(fill=X)
 
 	def render_app_navigation(self):
 		navigation = Frame(self.main)
