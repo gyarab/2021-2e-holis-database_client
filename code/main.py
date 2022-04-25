@@ -46,6 +46,7 @@ class ScreenManager:
 			Screen("create_user", CreateUserForm),
 			Screen("create_and_add_user_database", CreateUserForm),
 			Screen("table_create", CreateTableForm, self.add_table),
+			Screen("change_application_main_user", ApplicationMainUserChange)
 		]
 
 	def add_database(self, database):

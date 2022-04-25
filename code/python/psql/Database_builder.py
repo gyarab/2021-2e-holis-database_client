@@ -1,15 +1,16 @@
 from psycopg2 import *
 import json
 from psycopg2 import extras
-
+from tkinter import messagebox
 
 class DatabaseConnection:
-	def __init__(self, database='postgres', user='postgres', password='postgres', host='127.0.0.1', port='5432'):
-		self.database = database
-		self.user = user
-		self.password = password
-		self.host = host
-		self.port = port
+	def __init__(self, database, user, password, host, port):
+		database_connection = Database_builder().get_application_user()
+		self.database = database_connection['database'] if database is None else database
+		self.user = database_connection['user'] if user is None else user
+		self.password = database_connection['password'] if password is None else password
+		self.host = database_connection['host'] if host is None else host
+		self.port = database_connection['port'] if port is None else port
 
 	def convertToJson(self):
 		return {
@@ -28,7 +29,7 @@ class SelectParams:
 		self.offset = offset
 		self.conditions = {}
 
-	def build_question(self):
+	def build_question(self, count=False):
 		command = []
 
 		if len(self.conditions) > 0:
@@ -38,7 +39,7 @@ class SelectParams:
 				               self.conditions[con] + (" AND" if i + 1 < len(self.conditions) else ""))
 				i += 1
 
-		if self.order_by is not None:
+		if self.order_by is not None and count is False:
 			command.append('ORDER BY ' + self.order_by)
 
 		if self.offset is not None:
@@ -137,11 +138,22 @@ class Database_builder:
 		return self.execute(database_connection, command, values, 'all', asDict)
 
 	def autocommit_execute(self, command, values=None):
-		conn = connect(database="postgres", user='postgres', password='postgres', host='127.0.0.1', port='5432')
+		database_connection = self.get_application_user()
+		conn = connect(
+			database=database_connection['database'],
+			user=database_connection['user'],
+			password=database_connection['password'],
+			host=database_connection['host'],
+			port=database_connection['port']
+		)
 		conn.autocommit = True
 		cursor = conn.cursor()
-		cursor.execute(command, values)
-		conn.close()
+		try:
+			cursor.execute(command, values)
+			conn.close()
+		except BaseException as ex:
+			conn.close()
+			raise ex
 
 	def create_db(self, name, owner=None):
 		command = "CREATE database " + name + (" with owner %s;" if owner is not None else ";")
@@ -175,6 +187,14 @@ class Database_builder:
 		json_object[database_connection.database] = database_connection.convertToJson()
 		json.dump(json_object, a_file)
 		a_file.close()
+
+	def save_application_user(self, application_user):
+		a_file = open("data/application_user.json", "w")
+		json.dump(application_user.convertToJson(), a_file)
+		a_file.close()
+
+	def get_application_user(self):
+		return json.load(open("data/application_user.json", "r"))
 
 	def get_database_connection(self, database_name):
 		a_file = open("data/database_connections.json", "r")
@@ -220,7 +240,7 @@ class Database_builder:
 		command = 'SELECT COUNT(*) FROM "' + table + '"'
 
 		if select_params is not None:
-			command += " " + select_params.build_question()
+			command += " " + select_params.build_question(True)
 
 		return self.all(database_connection, command + ';')
 

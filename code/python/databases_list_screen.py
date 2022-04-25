@@ -1,7 +1,7 @@
 from tkinter import messagebox
 from code.python.psql.Database_builder import *
 from code.python.widgets.popup_menu import *
-
+from code.python.forms import *
 
 class Table:
     def __init__(self, root, database, name, change_screen, remove_table):
@@ -21,8 +21,11 @@ class Table:
                                         'Are you sure you want drop table ' + self.table_title.get() + ' ?',
                                         icon='warning')
         if MsgBox == 'yes':
-            Database_builder().drop_table(self.database, self.table_title.get())
-            self.delete_table()
+            try:
+                Database_builder().drop_table(self.database, self.table_title.get())
+                self.delete_table()
+            except BaseException as ex:
+                too_low_role(ex)
 
     def delete_table(self):
         self.remove_table(self.table_title.get())
@@ -32,10 +35,6 @@ class Table:
 
     def rename_table_screen(self):
         self.change_screen("table_rename", self.database, self.table_title.get())
-
-    def modify_table(self):
-        print("Drop table")
-        #Database_builder().drop_database()
 
     def refresh_table(self):
         table_name = self.table_title.get()
@@ -55,7 +54,6 @@ class Table:
         options = [
             Option("Rename table", self.rename_table_screen),
             Option("Drop", self.drop_table),
-            Option("Modify", self.modify_table),
             Option("Refresh", self.refresh_table)
         ]
 
@@ -101,10 +99,13 @@ class Database:
                                         'Are you sure you want drop database ' + self.database_title.get() + ' ?',
                                         icon='warning')
         if MsgBox == 'yes':
-            Database_builder().drop_database(self.database_title.get())
-            self.frame.pack_forget()
-            self.frame.destroy()
-            Database_builder().remove_database_connection(self.database_title.get())
+            try:
+                Database_builder().drop_database(self.database_title.get())
+                self.frame.pack_forget()
+                self.frame.destroy()
+                Database_builder().remove_database_connection(self.database_title.get())
+            except BaseException as ex:
+                too_low_role(str(ex))
 
     def disconnect_database(self):
         MsgBox = messagebox.askquestion('Disconnect database',
@@ -247,6 +248,7 @@ class Database_list_screen:
         create_link("Create db", "database_create")
         create_link("Connect user", "create_user")
         create_link("Home", "home")
+        create_link("Application user", "change_application_main_user")
 
         return self.screen
 

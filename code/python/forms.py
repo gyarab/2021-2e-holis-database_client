@@ -13,6 +13,39 @@ def check_invalid_letters(text, mode):
 	return True
 
 
+def too_low_role(ex):
+	too_low_role_check = re.search("must be owner (.+)", ex)
+	if too_low_role_check:
+		messagebox.showinfo('Too low role', """
+			Application user does not have rights 
+			on this operation. You can change application user
+			on Application user which you can enter from the link at the bottom at the
+			database list. 
+		""")
+		return
+
+
+def handle_database_connect_error(ex):
+	ex = str(ex)
+	too_low_role(ex)
+
+	role_not_exist = re.search("role \"(.+)\" does not exist", ex)
+	if role_not_exist:
+		messagebox.showinfo('Role already exist', 'Role ' + values[1] + ' does not exist')
+		return
+
+	database_not_exist = re.search("database \"(.+)\" does not exist", ex)
+	if database_not_exist:
+		messagebox.showinfo('Role already exist', 'Database ' + values[0] + ' does not exist')
+		return
+
+	if 'password authentication' in ex:
+		messagebox.showinfo('Wrong password', 'Wrong password for role ' + values[0])
+		return
+
+	messagebox.showinfo('Error', 'We are sorry, but something went wrong, Error: ' + ex)
+
+
 class CreateDatabaseForm:
 	def __init__(self, root, data, cb):
 		self.cb = cb
@@ -58,6 +91,7 @@ class CreateDatabaseForm:
 			messagebox.showinfo('Database creation', 'Database was successfully created')
 		except BaseException as ex:
 			ex = str(ex)
+			too_low_role(ex)
 			role_not_exist = re.search("role \"(.+)\" does not exist", ex)
 
 			if role_not_exist:
@@ -108,6 +142,7 @@ class AddUserToDatabase:
 			messagebox.showinfo('information', 'User was successfully created')
 		except BaseException as ex:
 			ex = str(ex)
+			too_low_role(ex)
 			role_not_exist = re.search("role \"(.+)\" does not exist", ex)
 
 			if role_not_exist:
@@ -163,6 +198,7 @@ class CreateUserForm:
 			self.form.clear()
 		except BaseException as ex:
 			ex = str(ex)
+			too_low_role(ex)
 
 			database_already_exist = re.search("role \"(.+)\" already exist", ex)
 			if database_already_exist:
@@ -227,29 +263,13 @@ class ConnectDatabaseForm:
 		try:
 			Database_builder().test_database_connection(database_connection)
 
-			if mode is not "test":
+			if mode != "test":
 				Database_builder().save_database_connection(database_connection)
 				self.cb(values[0])
 				self.form.clear()
 			messagebox.showinfo('Correct credentials', 'Credentials for connection are correct')
 		except BaseException as ex:
-			ex = str(ex)
-
-			role_not_exist = re.search("role \"(.+)\" does not exist", ex)
-			if role_not_exist:
-				messagebox.showinfo('Role already exist', 'Role ' + values[1] + ' does not exist')
-				return
-
-			database_not_exist = re.search("database \"(.+)\" does not exist", ex)
-			if database_not_exist:
-				messagebox.showinfo('Role already exist', 'Database ' + values[0] + ' does not exist')
-				return
-
-			if 'password authentication' in ex:
-				messagebox.showinfo('Wrong password', 'Wrong password for role ' + values[0])
-				return
-
-			messagebox.showinfo('Error', 'We are sorry, but something went wrong, Error: ' + ex)
+			handle_database_connect_error(ex)
 
 
 class RenameDatabaseForm:
@@ -300,6 +320,7 @@ class RenameDatabaseForm:
 			self.form.clear()
 		except BaseException as ex:
 			ex = str(ex)
+			too_low_role(ex)
 
 			database_already_exist = re.search("database \"(.+)\" already exist", ex)
 			if database_already_exist:
@@ -357,4 +378,77 @@ class RenameTable:
 			self.table = values[0]
 			self.form.clear()
 		except BaseException as ex:
+			too_low_role(ex)
 			messagebox.showinfo('Error', 'We are sorry, but something went wrong, Error: ' + str(ex))
+
+
+class ApplicationMainUserChange:
+	def __init__(self, root, data):
+		connection = Database_builder().get_application_user()
+		self.form = Form(
+			root,
+			"Configure database client user",
+			[
+				Field(
+					"user",
+					warning="Database can contain only lower case letters, _ and 0 - 9",
+					required=True,
+					value=connection['user']
+				),
+				Field(
+					"Database",
+					warning="Username can contain only lower case letters, _ and 0 - 9",
+					required=True,
+					value=connection['database']
+				),
+				Field(
+					"Password",
+					required=True,
+					value=connection['password']
+				),
+				Field(
+					"Host",
+					required=True,
+					value=connection['host']
+				),
+				Field(
+					"Port",
+					required=True,
+					value=connection['port']
+				)
+			],
+			[
+				FormButton(
+					"Connect",
+					lambda: self.handle_connection()
+				)
+			]
+		)
+		self.screen = self.form.main_frame
+
+	def handle_connection(self,):
+		values = self.form.get_values()
+
+		if values is None:
+			return
+
+		if check_invalid_letters(values[0], "user") is False:
+			return
+
+		if check_invalid_letters(values[1], "database") is False:
+			return
+
+		database_connection = DatabaseConnection(
+			user=values[0],
+			database=values[1],
+			password=values[2],
+			host=values[3],
+			port=values[4]
+		)
+
+		try:
+			Database_builder().test_database_connection(database_connection)
+			Database_builder().save_application_user(database_connection)
+			messagebox.showinfo('Correct credentials', 'Your application user was saved')
+		except BaseException as ex:
+			handle_database_connect_error(ex)
