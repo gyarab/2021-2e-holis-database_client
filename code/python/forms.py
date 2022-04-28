@@ -25,7 +25,7 @@ def too_low_role(ex):
 		return
 
 
-def handle_database_connect_error(ex):
+def handle_database_connect_error(ex, values):
 	ex = str(ex)
 	too_low_role(ex)
 
@@ -269,7 +269,7 @@ class ConnectDatabaseForm:
 				self.form.clear()
 			messagebox.showinfo('Correct credentials', 'Credentials for connection are correct')
 		except BaseException as ex:
-			handle_database_connect_error(ex)
+			handle_database_connect_error(ex, values)
 
 
 class RenameDatabaseForm:
@@ -451,4 +451,4 @@ class ApplicationMainUserChange:
 			Database_builder().save_application_user(database_connection)
 			messagebox.showinfo('Correct credentials', 'Your application user was saved')
 		except BaseException as ex:
-			handle_database_connect_error(ex)
+			handle_database_connect_error(ex, values)

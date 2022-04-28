@@ -222,8 +222,16 @@ class DatabaseTable:
 			selected = self.table.focus()
 			self.table.item(selected, values=vals)
 		else:
-			Database_builder().add_table_row(self.database, self.table_name, self.headers, vals)
-			self.table.insert(parent='', index=END, iid=len(self.table.get_children()), text='', values=vals)
+			try:
+				Database_builder().add_table_row(self.database, self.table_name, self.headers, vals)
+				self.table.insert(parent='', index=END, iid=len(self.table.get_children()), text='', values=vals)
+			except BaseException as ex:
+				ex = str(ex)
+				wrong_type = re.search("invalid input syntax for type (.+): (.+)", ex)
+
+				if wrong_type:
+					messagebox.showinfo('Wrong type', 'Inserted value does not match type, expected type ' + wrong_type.group(1))
+					return
 
 		self.reset_add_row_form()
 		self.add_row_frame.pack_forget()

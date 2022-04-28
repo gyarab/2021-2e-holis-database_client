@@ -1,10 +1,10 @@
 from psycopg2 import *
 import json
 from psycopg2 import extras
-from tkinter import messagebox
+
 
 class DatabaseConnection:
-	def __init__(self, database, user, password, host, port):
+	def __init__(self, database, user, password, host=None, port=None):
 		database_connection = Database_builder().get_application_user()
 		self.database = database_connection['database'] if database is None else database
 		self.user = database_connection['user'] if user is None else user
@@ -98,7 +98,7 @@ class UserBuilder:
 			command += "PASSWORD %s"
 
 		if len(options) > 0:
-			command += (" " if len(self.password) > 0 is not None else "") + " ".join(options)
+			command += (" " if len(self.password) > 0 else "") + " ".join(options)
 
 		return command + ";"
 
