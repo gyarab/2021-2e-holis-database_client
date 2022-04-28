@@ -1,5 +1,5 @@
-from code.python.widgets.form import *
-from code.python.psql.Database_builder import *
+from .widgets.form import *
+from .psql.Database_builder import *
 import re
 
 

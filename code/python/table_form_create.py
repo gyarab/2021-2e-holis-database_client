@@ -1,6 +1,5 @@
-from tkinter import messagebox
 from tkinter import *
-from code.python.psql.Database_builder import *
+from .psql.Database_builder import *
 import re
 import random
 from .widgets.ScrollableFrame import ScrollableFrame

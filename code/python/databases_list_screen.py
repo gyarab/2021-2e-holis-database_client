@@ -1,7 +1,6 @@
-from tkinter import messagebox
-from code.python.psql.Database_builder import *
-from code.python.widgets.popup_menu import *
-from code.python.forms import *
+from .widgets.popup_menu import *
+from .forms import *
+
 
 class Table:
     def __init__(self, root, database, name, change_screen, remove_table):

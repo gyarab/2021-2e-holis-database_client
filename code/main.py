@@ -1,8 +1,8 @@
-from code.python.databases_list_screen import *
-from code.python.forms import *
-from code.python.database_table import *
-from code.python.table_form_create import *
-from code.python.home_screen import *
+from python.databases_list_screen import *
+from python.forms import *
+from python.database_table import *
+from python.table_form_create import *
+from python.home_screen import *
 
 main = Tk()
 main.geometry("1000x800")

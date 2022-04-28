@@ -1,15 +1,17 @@
 import copy
-from tkinter import messagebox
 from tkinter.ttk import *
-from code.python.psql.Database_builder import *
+from .psql.Database_builder import *
 import random
-from code.python.widgets.svg_pic import *
+from .widgets.svg_pic import *
 import re
+from .widgets.ScrollableFrame import ScrollableFrame
 
 
 class DatabaseTable:
 	def __init__(self, root, data):
-		self.screen = Frame(root)
+		self.screen = ScrollableFrame(root)
+		self.main_frame = self.screen.scrollable_frame
+
 		self.database = data[0]
 		self.table_name = data[1]
 		self.table = None
@@ -18,8 +20,8 @@ class DatabaseTable:
 		self.headers = None
 		self.conditions = None
 		self.condition_ids = {}
-		self.add_row_frame = Frame(self.screen)
-		self.update_row_frame = Frame(self.screen)
+		self.add_row_frame = Frame(self.main_frame)
+		self.update_row_frame = Frame(self.main_frame)
 		self.row_count = IntVar()
 
 		self.start()
@@ -70,7 +72,7 @@ class DatabaseTable:
 			self.table.delete(item)
 
 	def order_by_button(self):
-		filters = Frame(self.screen)
+		filters = Frame(self.main_frame)
 		filters.pack()
 
 		Label(filters, text="Order by").pack(side=LEFT)
@@ -155,7 +157,7 @@ class DatabaseTable:
 		self.load_table()
 
 	def reset_search_params(self, args):
-		for ch in self.screen.winfo_children():
+		for ch in self.main_frame.winfo_children():
 			ch.destroy()
 
 		self.table = None
@@ -168,11 +170,11 @@ class DatabaseTable:
 		self.header()
 		self.order_by_button()
 
-		self.conditions = Frame(self.screen)
+		self.conditions = Frame(self.main_frame)
 		self.conditions.pack()
-		Button(self.screen, text="Add condition", command=self.render_condition_input).pack()
+		Button(self.main_frame, text="Add condition", command=self.render_condition_input).pack()
 
-		self.screen.pack()
+		self.main_frame.pack()
 		self.load_table()
 
 		if self.row_count.get() < self.select_params.limit:
@@ -182,6 +184,9 @@ class DatabaseTable:
 
 	def remove_rows(self, args):
 		rows = self.table.selection()
+
+		if len(rows) == 0:
+			messagebox.showinfo('Nothing to delete ', 'Any rows to delete were selected.')
 
 		database_builder = Database_builder()
 		for row in rows:
@@ -195,8 +200,11 @@ class DatabaseTable:
 	def edit_row(self):
 		rows = self.table.selection()
 
+		if len(rows) == 0:
+			messagebox.showinfo('Nothing to delete ', 'Any row to edit were selected.')
+
 		if len(rows) > 1:
-			messagebox.showinfo('Only one line can be edited at a time')
+			messagebox.showinfo('Too many rows', 'Only one line can be edited at a time')
 			return
 
 		edited = self.get_row_value(rows[0])
@@ -249,7 +257,7 @@ class DatabaseTable:
 		Button(self.add_row_frame, text=button_text, command=lambda: self.add_row(entries, values)).pack()
 
 	def header(self):
-		header = Frame(self.screen)
+		header = Frame(self.main_frame)
 
 		Icon(header, "refresh.png", self.refresh_table).label.pack(side=LEFT)
 		Icon(header, "reset.png", self.reset_search_params).label.pack(side=LEFT)
@@ -283,14 +291,14 @@ class DatabaseTable:
 		self.get_table_row_count()
 
 		if self.table is None:
-			table_frame = Frame(self.screen)
+			table_frame = Frame(self.main_frame)
 			table_frame.pack()
 			table_scroll_y = Scrollbar(table_frame)
 			table_scroll_y.pack(side=RIGHT, fill=Y)
 			table_scroll_x = Scrollbar(table_frame, orient='horizontal')
 			style = Style()
 			style.theme_use()
-			self.table = Treeview(table_frame, height=20, columns=self.headers, show='headings', yscrollcommand=table_scroll_y.set, xscrollcommand=table_scroll_x.set)
+			self.table = Treeview(table_frame, columns=self.headers, show='headings', yscrollcommand=table_scroll_y.set, xscrollcommand=table_scroll_x.set)
 			self.table.pack(fill=BOTH)
 			table_scroll_y.configure(command=self.table.yview)
 			table_scroll_x.pack(fill=X)
